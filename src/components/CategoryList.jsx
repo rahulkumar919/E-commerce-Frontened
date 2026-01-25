@@ -44,47 +44,62 @@ const CategoryList = () => {
           "
         >
           {categoryProduct.length > 0 ? (
-            categoryProduct.map((product, index) => (
-              <Link
-                key={index}
-                to={`/product-category/${encodeURIComponent(product?.category)}`}
-                className="
-                  flex flex-col items-center justify-center
-                  min-w-[90px] md:min-w-[110px] snap-start
-                  group transition-transform duration-300 ease-out
-                  hover:scale-110 hover:-translate-y-1
-                "
-              >
-                <div
+            categoryProduct.map((product, index) => {
+              const imageUrl = Array.isArray(product?.productImage)
+                ? product.productImage[0]
+                : product?.productImage;
+              const category = product?.category || "Category";
+
+              return (
+                <Link
+                  key={index}
+                  to={`/product-category/${encodeURIComponent(category)}`}
                   className="
-                    w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center
-                    bg-gradient-to-tr from-gray-100 to-gray-200
-                    shadow-md group-hover:shadow-lg
-                    border border-gray-100 hover:border-red-400
-                    transition-all duration-300
+                    flex flex-col items-center justify-center
+                    min-w-[90px] md:min-w-[110px] snap-start
+                    group transition-transform duration-300 ease-out
+                    hover:scale-110 hover:-translate-y-1
                   "
                 >
-                  <img
-                    src={product?.productImage?.[0]}
-                    alt={product?.category}
-                    loading="lazy"
+                  <div
                     className="
-                      h-12 md:h-14 object-contain 
-                      mix-blend-multiply transform group-hover:scale-110 transition-transform
+                      w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center
+                      bg-gradient-to-tr from-gray-100 to-gray-200
+                      shadow-md group-hover:shadow-lg
+                      border border-gray-100 hover:border-red-400
+                      transition-all duration-300
                     "
-                  />
-                </div>
-                <p
-                  className="
-                    text-center text-sm md:text-base mt-3 capitalize 
-                    text-gray-700 font-medium group-hover:text-red-600
-                    transition-colors duration-300
-                  "
-                >
-                  {product?.category}
-                </p>
-              </Link>
-            ))
+                  >
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={category}
+                        loading="lazy"
+                        className="
+                          h-12 md:h-14 object-contain 
+                          mix-blend-multiply transform group-hover:scale-110 transition-transform
+                        "
+                        onError={(e) => {
+                          e.target.src =
+                            "https://via.placeholder.com/50?text=Image";
+                        }}
+                      />
+                    ) : (
+                      <span className="text-2xl">📦</span>
+                    )}
+                  </div>
+                  <p
+                    className="
+                      text-center text-sm md:text-base mt-3 capitalize 
+                      text-gray-700 font-medium group-hover:text-red-600
+                      transition-colors duration-300
+                    "
+                  >
+                    {category}
+                  </p>
+                </Link>
+              );
+            })
           ) : (
             <p className="text-gray-500 text-center w-full">
               No categories available 😢

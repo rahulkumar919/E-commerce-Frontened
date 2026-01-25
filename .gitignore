@@ -16,9 +16,11 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
+.DS_Store  
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+REACT_APP_CLOUD_NAME = your_cloud_name
+REACT_APP_UPLOAD_PRESET = your_upload_preset

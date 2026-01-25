@@ -1,7 +1,7 @@
 import { Meh } from "lucide-react";
 
-const backenDomain = "http://localhost:8080";
-const baseUrl = "http://localhost:8080/api";
+const backenDomain = "https://e-commerce-store-inky-nine.vercel.app";
+const baseUrl = "https://e-commerce-store-inky-nine.vercel.app/api";
 
 const summaryApi = {
   signup: {
