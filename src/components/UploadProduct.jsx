@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GiCancel } from "react-icons/gi";
 import { FaCloudDownloadAlt } from "react-icons/fa";
-import productCategory from "../PhotoHelper/AllProductList";
 import uploadImage from "../PhotoHelper/uploadImage";
 import DisplayImage from "./DisplayImage";
 import { MdDelete } from "react-icons/md";
@@ -19,8 +18,42 @@ const UploadProduct = ({ onClose }) => {
     description : ""
   });
 
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [openImage, setOpenImage] = useState(false);
   const [fullScreen, setFullScreen] = useState("");
+
+  // Fetch categories from database
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const response = await fetch(summaryApi.getAllCategories.url, {
+        method: summaryApi.getAllCategories.method,
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        // Filter only active categories and map to dropdown format
+        const activeCategories = result.data
+          .filter(cat => cat.isActive)
+          .map(cat => ({
+            id: cat._id,
+            label: cat.name,
+            value: cat.name
+          }));
+        setCategories(activeCategories);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      toast.error("Failed to load categories");
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const handleDeleteButton =async(index)=>{
      console.log("image index" ,index) ;
@@ -51,24 +84,39 @@ const UploadProduct = ({ onClose }) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
 
-     
-    // Uploded  Product handler function 
+    // Validate file size (max 10MB before compression)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image size should be less than 10MB");
+      return;
+    }
 
-    
-    
+    try {
+      toast.info("Optimizing and uploading image...");
+      
+      // Upload with 'product' type for optimization
+      const uploadedImageUrl = await uploadImage(file, 'product');
 
-    const uploadedImageUrl = await uploadImage(file);
+      if (uploadedImageUrl) {
+        setData((prev) => ({
+          ...prev,
+          productImage: [...prev.productImage, uploadedImageUrl],
+        }));
 
-    if (uploadedImageUrl) {
-      setData((prev) => ({
-        ...prev,
-        productImage: [...prev.productImage, uploadedImageUrl],
-      }));
-
-      console.log("✅ Uploaded image:", uploadedImageUrl);
-    } else {
-      console.error("Image upload failed");
+        toast.success("Image uploaded successfully!");
+        console.log("✅ Uploaded image:", uploadedImageUrl);
+      } else {
+        toast.error("Image upload failed");
+        console.error("Image upload failed");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image");
     }
   };
 
@@ -173,14 +221,22 @@ const UploadProduct = ({ onClose }) => {
             value={data.category}
             onChange={handleOnchange}
             className="border border-gray-300 rounded p-2 bg-slate-100 mb-3"
+            disabled={loadingCategories}
           >
-            <option value="">-- Select Category --</option>
-            {productCategory.map((el, index) => (
-              <option key={index} value={el.value}>
+            <option value="">
+              {loadingCategories ? "Loading categories..." : "-- Select Category --"}
+            </option>
+            {categories.map((el) => (
+              <option key={el.id} value={el.value}>
                 {el.label}
               </option>
             ))}
           </select>
+          {categories.length === 0 && !loadingCategories && (
+            <p className="text-xs text-red-500 -mt-2 mb-2">
+              No categories available. Please add categories first.
+            </p>
+          )}
 
           {/* Image Upload Section */}
           <label htmlFor="productImage" className="font-bold mt-3">

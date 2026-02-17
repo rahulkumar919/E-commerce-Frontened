@@ -7,23 +7,25 @@ import {
   Twitter,
   Instagram,
   Linkedin,
-  ShoppingCart,
-  Heart,
-  CreditCard,
-  Shield,
-  Truck,
-  RotateCcw,
+  ShoppingBag,
   Send,
   CheckCircle,
+  ArrowRight,
+  Youtube,
+  Github,
 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useSiteSettings } from "../context/SiteSettingsContext";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const { siteSettings, loading } = useSiteSettings();
 
-  const handleSubscribe = () => {
-    if (email) {
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    if (email && email.includes("@")) {
       setSubscribed(true);
       setTimeout(() => {
         setSubscribed(false);
@@ -32,185 +34,230 @@ const Footer = () => {
     }
   };
 
+  if (loading) {
+    return null; // or a loading skeleton
+  }
+
   return (
-    <footer className="relative bg-gradient-to-br from-gray-950 via-gray-900 to-black text-gray-300 mt-20 overflow-hidden border-t border-gray-800/50">
-      {/* Glowing Gradient Line */}
-      <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-pink-500 via-red-500 to-orange-400 animate-pulse"></div>
-
-      {/* Ambient Glow Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 right-20 w-[400px] h-[400px] bg-pink-500/10 blur-3xl rounded-full"></div>
-        <div className="absolute bottom-20 left-20 w-[500px] h-[500px] bg-orange-500/10 blur-3xl rounded-full"></div>
-      </div>
-
-      {/* Trust Section */}
-      <div className="relative border-b border-gray-800/50 backdrop-blur-md">
-        <div className="max-w-[1200px] mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
-          {[
-            { icon: <Truck />, title: "Free Shipping", desc: "On orders over ₹999", color: "from-red-500 to-orange-500" },
-            { icon: <RotateCcw />, title: "Easy Returns", desc: "30 days return policy", color: "from-blue-500 to-cyan-500" },
-            { icon: <Shield />, title: "Secure Payment", desc: "100% SSL Protected", color: "from-green-500 to-emerald-500" },
-            { icon: <Heart />, title: "24/7 Support", desc: "Dedicated Helpdesk", color: "from-pink-500 to-rose-500" },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="group flex flex-col items-center text-center transition-transform hover:scale-105"
-            >
-              <div
-                className={`w-16 h-16 bg-gradient-to-br ${item.color} rounded-2xl flex items-center justify-center text-white shadow-md shadow-gray-800/30 mb-3 group-hover:shadow-lg group-hover:shadow-${item.color.split(' ')[1]}/40 transition-all`}
-              >
-                {item.icon}
+    <footer className="bg-gradient-to-b from-gray-900 to-black text-gray-300 mt-auto">
+      {/* Main Footer Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+          
+          {/* Brand Section */}
+          <div className="space-y-4">
+            <Link to="/" className="flex items-center space-x-2 group">
+              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                <ShoppingBag className="w-6 h-6 text-white" />
               </div>
-              <h4 className="text-white font-bold">{item.title}</h4>
-              <p className="text-gray-400 text-sm">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Footer */}
-      <div className="relative max-w-[1300px] mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12">
-        {/* About */}
-        <div className="lg:col-span-4">
-          <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-md shadow-orange-500/40 mr-3">
-              <ShoppingCart className="w-7 h-7 text-white" />
-            </div>
-            <h3 className="text-white text-2xl font-extrabold tracking-wide">
-              Dynamic Store
-            </h3>
-          </div>
-          <p className="text-gray-400 mb-6 leading-relaxed">
-            Experience premium shopping with exclusive collections and unbeatable
-            deals. Fast delivery, secure payments, and 24/7 support — all in one
-            place.
-          </p>
-
-          {/* Social Media */}
-          <div className="flex space-x-3">
-            {[
-              { icon: <Facebook />, color: "from-blue-600 to-blue-800" },
-              { icon: <Twitter />, color: "from-sky-400 to-sky-600" },
-              { icon: <Instagram />, color: "from-pink-600 to-rose-600" },
-              { icon: <Linkedin />, color: "from-blue-700 to-indigo-800" },
-            ].map((item, i) => (
-              <a
-                key={i}
-                href="#"
-                className={`w-10 h-10 bg-gray-800 hover:bg-gradient-to-br ${item.color} rounded-lg flex items-center justify-center transition-all duration-300 group`}
-              >
-                <div className="text-gray-400 group-hover:text-white transition-colors">
-                  {item.icon}
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Links */}
-        <div className="lg:col-span-2">
-          <h3 className="text-white text-lg font-bold mb-6 border-b-2 border-gradient-to-r from-orange-500 to-red-500 w-fit pb-1">
-            Quick Links
-          </h3>
-          <ul className="space-y-3">
-            {["About Us", "Shop", "Offers", "Blog", "Contact"].map((link) => (
-              <li key={link}>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-orange-400 transition-all duration-200 flex items-center gap-2 group"
-                >
-                  <span className="inline-block w-0 h-0.5 bg-orange-500 group-hover:w-3 transition-all duration-300"></span>
-                  {link}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Customer Service */}
-        <div className="lg:col-span-2">
-          <h3 className="text-white text-lg font-bold mb-6 border-b-2 border-gradient-to-r from-orange-500 to-red-500 w-fit pb-1">
-            Customer Care
-          </h3>
-          <ul className="space-y-3">
-            {[
-              "Track Order",
-              "Returns & Refunds",
-              "Shipping Policy",
-              "Privacy Policy",
-              "Help Center",
-            ].map((link) => (
-              <li key={link}>
-                <a
-                  href="#"
-                  className="text-gray-400 hover:text-orange-400 transition-all duration-200 flex items-center gap-2 group"
-                >
-                  <span className="inline-block w-0 h-0.5 bg-orange-500 group-hover:w-3 transition-all duration-300"></span>
-                  {link}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Newsletter */}
-        <div className="lg:col-span-4">
-          <h3 className="text-white text-lg font-bold mb-6 border-b-2 border-gradient-to-r from-orange-500 to-red-500 w-fit pb-1">
-            Stay Updated
-          </h3>
-          <div className="bg-gray-800/40 border border-gray-700/50 rounded-2xl p-6 shadow-inner">
-            <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
-              <Mail className="text-orange-400 w-5 h-5" /> Newsletter
-            </h4>
-            <p className="text-sm text-gray-400 mb-4">
-              Get exclusive offers and updates right in your inbox.
+              <span className="text-2xl font-bold text-white">
+                {siteSettings.siteName || "ShopHub"}
+              </span>
+            </Link>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Your one-stop destination for quality products at amazing prices. Shop with confidence and enjoy fast, secure delivery.
             </p>
-            <div className="relative">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full bg-gray-900 text-white px-4 py-3 pr-12 rounded-xl text-sm border border-gray-700 focus:ring-2 focus:ring-orange-500 outline-none"
-              />
-              <button
-                onClick={handleSubscribe}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-300 hover:scale-110"
-              >
-                {subscribed ? (
-                  <CheckCircle className="w-4 h-4 text-white" />
-                ) : (
-                  <Send className="w-4 h-4 text-white" />
-                )}
-              </button>
+            
+            {/* Social Links */}
+            <div className="flex space-x-3 pt-2">
+              {siteSettings.socialLinks?.facebook && (
+                <a
+                  href={siteSettings.socialLinks.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-all duration-300 group"
+                  aria-label="Facebook"
+                >
+                  <Facebook className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              )}
+              {siteSettings.socialLinks?.twitter && (
+                <a
+                  href={siteSettings.socialLinks.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-sky-500 transition-all duration-300 group"
+                  aria-label="Twitter"
+                >
+                  <Twitter className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              )}
+              {siteSettings.socialLinks?.instagram && (
+                <a
+                  href={siteSettings.socialLinks.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-pink-600 transition-all duration-300 group"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              )}
+              {siteSettings.socialLinks?.youtube && (
+                <a
+                  href={siteSettings.socialLinks.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-red-600 transition-all duration-300 group"
+                  aria-label="YouTube"
+                >
+                  <Youtube className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              )}
+              {siteSettings.socialLinks?.linkedin && (
+                <a
+                  href={siteSettings.socialLinks.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-700 transition-all duration-300 group"
+                  aria-label="LinkedIn"
+                >
+                  <Linkedin className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              )}
+              {siteSettings.socialLinks?.github && (
+                <a
+                  href={siteSettings.socialLinks.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-all duration-300 group"
+                  aria-label="GitHub"
+                >
+                  <Github className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+                </a>
+              )}
             </div>
-            {subscribed && (
-              <p className="text-green-400 text-xs mt-2 animate-pulse">
-                ✓ Subscribed successfully!
-              </p>
-            )}
+          </div>
+
+          {/* Shop Links */}
+          <div>
+            <h3 className="text-white font-semibold text-lg mb-4">Shop</h3>
+            <ul className="space-y-3">
+              {[
+                { name: "New Arrivals", path: "/" },
+                { name: "Best Sellers", path: "/" },
+                { name: "Special Offers", path: "/" },
+                { name: "Gift Cards", path: "/" },
+                { name: "All Products", path: "/" },
+              ].map((link, idx) => (
+                <li key={idx}>
+                  <Link
+                    to={link.path}
+                    className="text-gray-400 hover:text-red-500 transition-colors duration-200 flex items-center group text-sm"
+                  >
+                    <ArrowRight className="w-0 h-4 opacity-0 group-hover:w-4 group-hover:opacity-100 transition-all duration-300 mr-0 group-hover:mr-2" />
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Customer Service */}
+          <div>
+            <h3 className="text-white font-semibold text-lg mb-4">Support</h3>
+            <ul className="space-y-3">
+              {[
+                { name: "Help Center", path: "/" },
+                { name: "Track Order", path: "/" },
+                { name: "Returns", path: "/" },
+                { name: "Shipping Info", path: "/" },
+                { name: "FAQs", path: "/" },
+              ].map((link, idx) => (
+                <li key={idx}>
+                  <Link
+                    to={link.path}
+                    className="text-gray-400 hover:text-red-500 transition-colors duration-200 flex items-center group text-sm"
+                  >
+                    <ArrowRight className="w-0 h-4 opacity-0 group-hover:w-4 group-hover:opacity-100 transition-all duration-300 mr-0 group-hover:mr-2" />
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Newsletter */}
+          <div>
+            <h3 className="text-white font-semibold text-lg mb-4">Stay Connected</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Subscribe to get special offers, free giveaways, and updates.
+            </p>
+            
+            <form onSubmit={handleSubscribe} className="space-y-3">
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Your email address"
+                  required
+                  className="w-full bg-gray-800 text-white px-4 py-3 pr-12 rounded-lg text-sm border border-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 w-8 h-8 flex items-center justify-center rounded-md transition-all duration-300 hover:scale-110"
+                >
+                  {subscribed ? (
+                    <CheckCircle className="w-4 h-4 text-white" />
+                  ) : (
+                    <Send className="w-4 h-4 text-white" />
+                  )}
+                </button>
+              </div>
+              
+              {subscribed && (
+                <p className="text-green-400 text-xs flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Thanks for subscribing!
+                </p>
+              )}
+            </form>
+
+            {/* Contact Info */}
+            <div className="mt-6 space-y-2">
+              {siteSettings.sitePhone && (
+                <a
+                  href={`tel:${siteSettings.sitePhone.replace(/\s/g, '')}`}
+                  className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-sm"
+                >
+                  <Phone className="w-4 h-4" />
+                  <span>{siteSettings.sitePhone}</span>
+                </a>
+              )}
+              {siteSettings.siteEmail && (
+                <a
+                  href={`mailto:${siteSettings.siteEmail}`}
+                  className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-sm"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>{siteSettings.siteEmail}</span>
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Section */}
-      <div className="border-t border-gray-800/50 bg-gray-950/80 backdrop-blur-sm">
-        <div className="max-w-[1200px] mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-center text-sm text-gray-400 gap-4">
-          <p>
-            © {currentYear} Dynamic Store. Crafted with{" "}
-            <Heart className="inline w-4 h-4 text-red-500 animate-pulse" /> by{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 font-bold">
-              Rahul Sahu
-            </span>
-          </p>
-          <div className="flex gap-4">
-            <a href="#" className="hover:text-orange-400 transition-colors">
-              Terms
-            </a>
-            <span>•</span>
-            <a href="#" className="hover:text-orange-400 transition-colors">
-              Privacy
-            </a>
+      {/* Bottom Bar */}
+      <div className="border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
+            <p className="text-center md:text-left">
+              © {currentYear} {siteSettings.siteName || "ShopHub"}. All rights reserved. Made with ❤️ in India
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-6">
+              <Link to="/" className="hover:text-red-500 transition-colors">
+                Privacy Policy
+              </Link>
+              <Link to="/" className="hover:text-red-500 transition-colors">
+                Terms of Service
+              </Link>
+              <Link to="/" className="hover:text-red-500 transition-colors">
+                Cookie Policy
+              </Link>
+            </div>
           </div>
         </div>
       </div>

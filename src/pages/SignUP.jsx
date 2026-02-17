@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import { useState, useContext } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import user from "../assets/user.png";
 import imageTobase64 from "../PhotoHelper/imgeResizing";
 import summaryApi from "../../common";
 import { toast } from "react-toastify";
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode';
+import { Context } from "../App";
 
 const SignUP = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +22,55 @@ const SignUP = () => {
   });
 
   const navigate = useNavigate();
+  const { fetchUserDetails } = useContext(Context);
+
+  // Handle Google Login Success
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const decoded = jwtDecode(credentialResponse.credential);
+      console.log("Google User Info:", decoded);
+
+      const response = await fetch(summaryApi.googleAuth.url, {
+        method: summaryApi.googleAuth.method,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: decoded.email,
+          name: decoded.name,
+          profilePic: decoded.picture,
+          googleId: decoded.sub,
+        }),
+      });
+
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Server returned non-JSON response:", await response.text());
+        toast.error("Server error. Please make sure backend is deployed with Google Auth route.");
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message);
+        await fetchUserDetails();
+        navigate("/");
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error("Google Auth Error:", error);
+      toast.error("Google sign-in failed. Please check console for details.");
+    }
+  };
+
+  // Handle Google Login Error
+  const handleGoogleError = () => {
+    toast.error("Google sign-in was cancelled or failed");
+  };
 
   // handle input change
   const handleOnChange = (e) => {
@@ -39,8 +91,8 @@ const SignUP = () => {
     e.preventDefault();
 
     // check fields
-    if (!formData.email || !formData.password) {
-      toast.error("Please enter email and password");
+    if (!formData.email || !formData.password || !formData.name) {
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -55,25 +107,39 @@ const SignUP = () => {
       return;
     }
 
+    // Check password strength
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
     try {
-      const response = await fetch("http://localhost:8080/api/signup", {
-        method: "post",
+      toast.info("Sending OTP to your email...");
+      
+      // Send OTP instead of directly creating user
+      const response = await fetch(summaryApi.SendOtp.url, {
+        method: summaryApi.SendOtp.method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email,
+          name: formData.name,
+          password: formData.password,
+          profilePic: formData.profilePic,
+        }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        toast.success(result.message);
+        toast.success("OTP sent to your email! Please verify.");
+        // Navigate to OTP verification page
         navigate(`/verify-otp?email=${encodeURIComponent(formData.email)}`);
-        // navigate("/login")
       } else {
-        toast.error(result.message);
+        toast.error(result.message || "Failed to send OTP");
       }
-      console.log("API Response:", result);
+      console.log("OTP Response:", result);
     } catch (error) {
       console.error("Signup Error:", error);
       toast.error("Something went wrong. Please try again.");
@@ -93,118 +159,154 @@ const SignUP = () => {
   };
 
   return (
-    <section id="signup">
-      <div className="mx-auto container">
-        <div className="bg-white p-5 w-full max-w-sm mt-3 mx-auto rounded shadow-lg">
+    <section id="signup" className="min-h-screen flex items-center justify-center py-6 px-3 bg-gray-50">
+      <div className="w-full max-w-[340px] sm:max-w-md">
+        <div className="bg-white p-5 sm:p-7 rounded-lg shadow-xl">
           {/* Profile Pic Upload */}
-          <div className="w-16 h-16 mx-auto relative rounded-full overflow-hidden">
+          <div className="w-20 h-20 mx-auto relative rounded-full overflow-hidden mb-4 border-2 border-gray-200">
             <img
               src={formData.profilePic || user}
               alt="user-icon"
-              className="w-full h-full object-cover rounded-full"
+              className="w-full h-full object-cover"
             />
-            <form className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-x cursor-pointer font-semibold">
-              Upload Photo
+            <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 text-white text-[10px] sm:text-xs cursor-pointer font-medium hover:bg-opacity-70 transition">
+              <span className="text-center px-2">Upload</span>
               <input
                 type="file"
-                className="absolute inset-0 opacity-0 cursor-pointer"
+                className="hidden"
                 onChange={handleUploadPic}
+                accept="image/*"
               />
-            </form>
+            </label>
           </div>
 
+          {/* Title */}
+          <h2 className="text-xl sm:text-2xl font-bold text-center text-gray-800 mb-5">
+            Create Account
+          </h2>
+
           {/* Signup Form */}
-          <form className="pt-5" onSubmit={handleSubmit}>
+          <form className="space-y-3.5" onSubmit={handleSubmit}>
             {/* Name */}
-            <div className="grid">
-              <label>Name :</label>
-              <div className="bg-slate-200 p-2">
-                <input
-                  type="text"
-                  placeholder="Enter Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleOnChange}
-                  className="w-full h-full outline-none bg-transparent"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                name="name"
+                value={formData.name}
+                onChange={handleOnChange}
+                required
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-sm transition"
+              />
             </div>
 
             {/* Email */}
-            <div className="grid">
-              <label>Email ID :</label>
-              <div className="bg-slate-200 p-2">
-                <input
-                  type="email"
-                  placeholder="Enter Email"
-                  name="email"
-                  pattern="^[a-zA-Z0-9._%+-]+@gmail\.com$"
-                  required
-                  value={formData.email}
-                  onChange={handleOnChange}
-                  className="w-full h-full outline-none bg-transparent"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                name="email"
+                pattern="^[a-zA-Z0-9._%+-]+@gmail\.com$"
+                required
+                value={formData.email}
+                onChange={handleOnChange}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-sm transition"
+              />
             </div>
 
             {/* Password */}
-            <div className="grid mt-3">
-              <label>Password :</label>
-              <div className="bg-slate-200 p-2 flex">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter Password"
+                  placeholder="Enter password"
                   name="password"
                   value={formData.password}
                   onChange={handleOnChange}
-                  className="w-full h-full outline-none bg-transparent"
+                  required
+                  className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-sm transition"
                 />
-                <div
-                  className="cursor-pointer text-xl"
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   onClick={() => setShowPassword((prev) => !prev)}
                 >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </div>
+                  {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                </button>
               </div>
             </div>
 
             {/* Confirm Password */}
-            <div className="grid mt-3">
-              <label>Confirm Password :</label>
-              <div className="bg-slate-200 p-2 flex">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Confirm Password
+              </label>
+              <div className="relative">
                 <input
                   type={showConfirmPass ? "text" : "password"}
-                  placeholder="Confirm Password"
+                  placeholder="Confirm password"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleOnChange}
-                  className="w-full h-full outline-none bg-transparent"
+                  required
+                  className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-sm transition"
                 />
-                <div
-                  className="cursor-pointer text-xl"
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   onClick={() => setShowConfirmPass((prev) => !prev)}
                 >
-                  {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
-                </div>
+                  {showConfirmPass ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+                </button>
               </div>
             </div>
 
-            {/* Submit */}
+            {/* Submit Button */}
             <button
               type="submit"
-              className="font-bold flex items-center justify-center bg-red-500 col-auto px-6 py-2 w-full max-w-[140px] rounded-full hover:scale-110 transition-all text-white mt-3 mx-auto"
+              className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-lg transition-colors mt-5"
             >
-              {/* Verify  OTP  */}
-              SignUP
+              Sign Up
             </button>
           </form>
 
+          {/* Divider */}
+          <div className="flex items-center my-5">
+            <div className="flex-1 border-t border-gray-300"></div>
+            <span className="px-3 text-gray-500 text-xs font-medium">OR</span>
+            <div className="flex-1 border-t border-gray-300"></div>
+          </div>
+
+          {/* Google Sign-In Button */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-[280px]">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+                text="signup_with"
+                shape="rectangular"
+                width="280"
+              />
+            </div>
+          </div>
+
           {/* Login Link */}
-          <p className="my-5 text-center">
+          <p className="mt-5 text-center text-sm text-gray-600">
             Already have an account?{" "}
             <Link
               to={"/login"}
-              className="hover:text-red-800 hover:scale-110 duration-300 text-red-400 font-semibold hover:underline"
+              className="text-red-500 font-semibold hover:text-red-600 hover:underline transition"
             >
               Login
             </Link>

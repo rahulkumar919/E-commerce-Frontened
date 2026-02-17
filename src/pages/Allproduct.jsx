@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaBoxOpen, FaEdit, FaTrashAlt } from "react-icons/fa";
+import { FaBoxOpen, FaEdit, FaTrashAlt, FaFilter } from "react-icons/fa";
 import UploadProduct from "../components/UploadProduct";
 import summaryApi from "../../common";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,31 +8,103 @@ import { toast } from "react-toastify";
 const AllProduct = () => {
   const [openUploadProduct, setOpenUploadProduct] = useState(false);
   const [allProducts, setAllProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+  const [productCounts, setProductCounts] = useState({});
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
 
   //  Fetch All Products
   const fetchAllProducts = async () => {
     try {
-      
+      setLoading(true);
       const response = await fetch(summaryApi.GetProduct.url);
       const dataResponse = await response.json();
 
       if (dataResponse.success) {
-        setAllProducts(dataResponse.data || []);
+        const products = dataResponse.data || [];
+        setAllProducts(products);
+        setFilteredProducts(products);
+        
+        // Calculate product counts per category
+        const counts = {};
+        products.forEach(product => {
+          const category = product.category || 'uncategorized';
+          counts[category] = (counts[category] || 0) + 1;
+        });
+        setProductCounts(counts);
+        
       } else {
         console.error("Error fetching products:", dataResponse.message);
       }
     } catch (error) {
-      console.error(" Failed to fetch products:", error);
+      console.error("Failed to fetch products:", error);
     } finally {
-     
+      setLoading(false);
+    }
+  };
+
+  //  Fetch Categories
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(summaryApi.getAllCategories.url);
+      const dataResponse = await response.json();
+
+      if (dataResponse.success) {
+        // Map categories to have value and label properties
+        const mappedCategories = (dataResponse.data || []).map(cat => ({
+          _id: cat._id,
+          value: cat.name,
+          label: cat.name,
+          productCount: cat.productCount || 0
+        }));
+        setCategories(mappedCategories);
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
     }
   };
 
   useEffect(() => {
     fetchAllProducts();
+    fetchCategories();
   }, []);
+
+  //  Filter products by category
+  useEffect(() => {
+    if (selectedCategory === "all") {
+      setFilteredProducts(allProducts);
+    } else {
+      // Case-insensitive category matching
+      const filtered = allProducts.filter(
+        product => product.category && product.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [selectedCategory, allProducts]);
+
+  //  Handle category change
+  const handleCategoryChange = (category) => {
+    setSelectedCategory(category);
+    
+    // Show message with product count
+    if (category === "all") {
+      toast.info(`Showing all ${allProducts.length} products`);
+    } else {
+      const count = productCounts[category] || 0;
+      const categoryName = categories.find(cat => cat.value === category)?.label || category;
+      toast.info(`${categoryName}: ${count} product${count !== 1 ? 's' : ''} found`);
+    }
+  };
+
+  // Reset to all products
+  const resetFilter = () => {
+    setSelectedCategory("all");
+    setShowCategoryFilter(false);
+    toast.info(`Showing all ${allProducts.length} products`);
+  };
 
   //  Open Edit Modal
   const handleEditProduct = (product) => {
@@ -76,7 +148,7 @@ const AllProduct = () => {
   return (
     <div className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
       {/* 🏷️ Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-3">
           <motion.div
             initial={{ scale: 0 }}
@@ -86,23 +158,117 @@ const AllProduct = () => {
           >
             <FaBoxOpen size={22} />
           </motion.div>
-          <h2 className="text-3xl font-extrabold text-gray-800 tracking-wide">
-            All Products
-          </h2>
+          <div>
+            <h2 className="text-3xl font-extrabold text-gray-800 tracking-wide">
+              All Products
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {selectedCategory === "all" 
+                ? `Total: ${allProducts.length} products` 
+                : `${filteredProducts.length} of ${allProducts.length} products`}
+            </p>
+          </div>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            setEditProduct(null);
-            setOpenUploadProduct(true);
-          }}
-          className="bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-all shadow-md"
-        >
-          + Add Product
-        </motion.button>
+        <div className="flex gap-3">
+          {/* Toggle Category Filter Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all shadow-md ${
+              showCategoryFilter
+                ? "bg-gray-600 text-white hover:bg-gray-700"
+                : "bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400"
+            }`}
+          >
+            <FaFilter size={16} />
+            {showCategoryFilter ? "Hide Filter" : "Filter by Category"}
+          </motion.button>
+
+          {/* Add Product Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setEditProduct(null);
+              setOpenUploadProduct(true);
+            }}
+            className="bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-all shadow-md"
+          >
+            + Add Product
+          </motion.button>
+        </div>
       </div>
+
+      {/* 🔍 Category Filter Section - Only show when toggled */}
+      {showCategoryFilter && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-6 bg-white rounded-xl shadow-sm p-4"
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <FaFilter className="text-gray-600" />
+              <h3 className="text-lg font-semibold text-gray-800">Select Category</h3>
+            </div>
+            
+            {/* Category Dropdown Select */}
+            <div className="w-full sm:w-auto">
+              <select
+                value={selectedCategory === "all" ? "" : selectedCategory}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleCategoryChange(e.target.value);
+                  }
+                }}
+                className="w-full sm:w-64 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-gray-700 font-medium cursor-pointer transition-all hover:border-blue-400"
+              >
+                {/* Placeholder Option */}
+                <option value="" disabled>
+                  Choose a category...
+                </option>
+                
+                {/* Individual Category Options - NO "All Categories" */}
+                {categories.map((category) => {
+                  const count = productCounts[category.value] || 0;
+                  return (
+                    <option key={category._id} value={category.value}>
+                      {category.label} ({count} product{count !== 1 ? 's' : ''})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          {/* Category Info Message */}
+          {selectedCategory !== "all" && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"
+            >
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">
+                  {categories.find(cat => cat.value === selectedCategory)?.label || selectedCategory}
+                </span>
+                {" - "}
+                Showing {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+              </p>
+              <button
+                onClick={resetFilter}
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium underline"
+              >
+                Show All Products
+              </button>
+            </motion.div>
+          )}
+        </motion.div>
+      )}
 
       {/* 🧩 Product List Section */}
       {loading ? (
@@ -120,21 +286,33 @@ const AllProduct = () => {
               </div>
             ))}
         </div>
-      ) : allProducts.length === 0 ? (
-        <motion.p
+      ) : filteredProducts.length === 0 ? (
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-gray-500 text-center mt-16 text-lg"
+          className="text-center mt-16"
         >
-          No products found 😔
-        </motion.p>
+          <p className="text-gray-500 text-lg mb-2">
+            {selectedCategory === "all" 
+              ? "No products found 😔" 
+              : `No products in this category 😔`}
+          </p>
+          {selectedCategory !== "all" && (
+            <button
+              onClick={() => handleCategoryChange("all")}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              View all products →
+            </button>
+          )}
+        </motion.div>
       ) : (
         <motion.div
           layout
           className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
         >
           <AnimatePresence>
-            {allProducts.map((product, index) => (
+            {filteredProducts.map((product, index) => (
               <motion.div
                 key={product._id || index}
                 initial={{ opacity: 0, y: 30 }}

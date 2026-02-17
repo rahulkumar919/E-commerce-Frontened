@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Context } from "../App";
+import SummaryApi from "../../common";
 
 const Checkout = () => {
   const [checkoutItems, setCheckoutItems] = useState([]);
@@ -12,8 +14,18 @@ const Checkout = () => {
     pincode: "",
     paymentMethod: "COD",
   });
+  const [processing, setProcessing] = useState(false);
 
   const navigate = useNavigate();
+  const { user, fetchUserAddToCount } = useContext(Context);
+
+  // ✅ Check if user is logged in
+  useEffect(() => {
+    if (!user) {
+      toast.warning("Please login to proceed with checkout");
+      navigate("/login");
+    }
+  }, [user, navigate]);
 
   // ✅ Load Checkout Items
   useEffect(() => {
@@ -38,8 +50,203 @@ const Checkout = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  // ✅ Handle Razorpay Payment
+  const handleRazorpayPayment = async (orderData) => {
+    try {
+      console.log("🔄 Creating Razorpay order...");
+      console.log("💰 Amount:", total);
+
+      // Create Razorpay order
+      const orderResponse = await fetch(SummaryApi.createOrder.url, {
+        method: SummaryApi.createOrder.method,
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ amount: total }),
+      });
+
+      const orderResult = await orderResponse.json();
+      console.log("📦 Order Response:", orderResult);
+
+      if (!orderResult.success) {
+        console.error("❌ Order creation failed:", orderResult.message);
+        toast.error(orderResult.message || "Failed to create payment order");
+        setProcessing(false);
+        return;
+      }
+
+      const { id: order_id, amount, currency } = orderResult.data;
+      console.log("✅ Order created:", order_id);
+
+      // Check if Razorpay is loaded
+      if (!window.Razorpay) {
+        console.error("❌ Razorpay SDK not loaded");
+        toast.error("Payment gateway not loaded. Please refresh the page.");
+        setProcessing(false);
+        return;
+      }
+
+      // Get Razorpay Key
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      console.log("🔑 Razorpay Key:", razorpayKey);
+
+      if (!razorpayKey || razorpayKey === "rzp_test_your_key_id_here") {
+        console.error("❌ Invalid Razorpay Key");
+        toast.error("Payment configuration error. Please contact support.");
+        setProcessing(false);
+        return;
+      }
+
+      // Razorpay options
+      const options = {
+        key: razorpayKey,
+        amount: amount,
+        currency: currency,
+        name: "RKShop",
+        description: "Order Payment",
+        order_id: order_id,
+        handler: async function (response) {
+          console.log("✅ Payment response received:", response);
+          
+          // CRITICAL: Check if all required fields are present
+          if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
+            console.error("❌ Incomplete payment response:", response);
+            toast.error("Payment verification failed - incomplete response");
+            setProcessing(false);
+            return;
+          }
+
+          try {
+            console.log("🔐 Verifying payment with backend...");
+            
+            // Verify payment with backend
+            const verifyResponse = await fetch(SummaryApi.verifyPayment.url, {
+              method: SummaryApi.verifyPayment.method,
+              credentials: "include",
+              headers: {
+                "content-type": "application/json",
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderData: orderData,
+              }),
+            });
+
+            const verifyResult = await verifyResponse.json();
+            console.log("🔐 Verification result:", verifyResult);
+
+            if (verifyResult.success) {
+              console.log("✅ Payment verified successfully");
+              toast.success("🎉 Payment successful! Order placed.");
+              
+              // Clear cart
+              localStorage.removeItem("checkoutItems");
+              localStorage.removeItem("cartItems");
+              
+              // Update cart count
+              if (fetchUserAddToCount) {
+                fetchUserAddToCount();
+              }
+
+              setTimeout(() => {
+                navigate("/");
+              }, 1500);
+            } else {
+              console.error("❌ Payment verification failed:", verifyResult.message);
+              toast.error(verifyResult.message || "Payment verification failed. Please contact support.");
+            }
+          } catch (error) {
+            console.error("❌ Payment verification error:", error);
+            toast.error("Payment verification failed. Please contact support.");
+          } finally {
+            setProcessing(false);
+          }
+        },
+        prefill: {
+          name: formData.name,
+          contact: formData.phone,
+        },
+        notes: {
+          address: formData.address,
+          city: formData.city,
+        },
+        theme: {
+          color: "#EF4444",
+        },
+        modal: {
+          ondismiss: function () {
+            console.log("⚠️ Payment cancelled by user");
+            toast.info("Payment cancelled");
+            setProcessing(false);
+          },
+          confirm_close: true, // Ask user before closing
+        },
+        retry: {
+          enabled: true,
+          max_count: 3,
+        },
+      };
+
+      console.log("🚀 Opening Razorpay checkout...");
+      const razorpay = new window.Razorpay(options);
+      
+      razorpay.on('payment.failed', function (response) {
+        console.error("❌ Payment failed:", response.error);
+        toast.error(`Payment failed: ${response.error.description}`);
+        setProcessing(false);
+      });
+
+      razorpay.open();
+    } catch (error) {
+      console.error("❌ Razorpay error:", error);
+      toast.error("Payment failed. Please try again.");
+      setProcessing(false);
+    }
+  };
+
+  // ✅ Handle COD Order
+  const handleCODOrder = async (orderData) => {
+    try {
+      const response = await fetch(SummaryApi.createCODOrder.url, {
+        method: SummaryApi.createCODOrder.method,
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success("🎉 Order placed successfully with COD!");
+        localStorage.removeItem("checkoutItems");
+        localStorage.removeItem("cartItems");
+        
+        // Update cart count
+        if (fetchUserAddToCount) {
+          fetchUserAddToCount();
+        }
+
+        setTimeout(() => {
+          navigate("/");
+        }, 1500);
+      } else {
+        toast.error(result.message || "Failed to place order");
+      }
+    } catch (error) {
+      console.error("COD order error:", error);
+      toast.error("Failed to place order");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // ✅ Handle Checkout
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
 
     if (
@@ -53,14 +260,39 @@ const Checkout = () => {
       return;
     }
 
-    toast.success("🎉 Order placed successfully!");
-    localStorage.removeItem("checkoutItems");
-    localStorage.removeItem("cartItems");
+    if (checkoutItems.length === 0) {
+      toast.error("No items in cart");
+      return;
+    }
 
-    // Redirect to home after placing order
-    setTimeout(() => {
-      navigate("/");
-    }, 1500);
+    setProcessing(true);
+
+    // Prepare order data
+    const orderData = {
+      products: checkoutItems.map((item) => ({
+        productId: item._id,
+        quantity: item.quantity || 1,
+        price: item.selling,
+      })),
+      shippingAddress: {
+        name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        pincode: formData.pincode,
+      },
+      subtotal: subtotal,
+      tax: Math.round(subtotal * 0.05),
+      total: total,
+    };
+
+    // Handle payment based on method
+    if (formData.paymentMethod === "COD") {
+      await handleCODOrder(orderData);
+    } else {
+      // Online payment (UPI, Card, etc.)
+      await handleRazorpayPayment(orderData);
+    }
   };
 
   return (
@@ -151,49 +383,74 @@ const Checkout = () => {
                 💳 Payment Method
               </h3>
               <div className="space-y-2">
-                <label className="flex items-center gap-3">
+                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="COD"
                     checked={formData.paymentMethod === "COD"}
                     onChange={handleChange}
-                    className="accent-red-500"
+                    className="accent-red-500 w-4 h-4"
                   />
-                  Cash on Delivery (COD)
+                  <div>
+                    <p className="font-medium">Cash on Delivery (COD)</p>
+                    <p className="text-xs text-gray-500">Pay when you receive the product</p>
+                  </div>
                 </label>
 
-                <label className="flex items-center gap-3">
+                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition">
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="UPI"
-                    checked={formData.paymentMethod === "UPI"}
+                    value="ONLINE"
+                    checked={formData.paymentMethod === "ONLINE"}
                     onChange={handleChange}
-                    className="accent-red-500"
+                    className="accent-red-500 w-4 h-4"
                   />
-                  UPI / Net Banking
-                </label>
-
-                <label className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="CARD"
-                    checked={formData.paymentMethod === "CARD"}
-                    onChange={handleChange}
-                    className="accent-red-500"
-                  />
-                  Credit / Debit Card
+                  <div>
+                    <p className="font-medium">Online Payment (Razorpay)</p>
+                    <p className="text-xs text-gray-500">UPI, Cards, Net Banking, Wallets</p>
+                  </div>
                 </label>
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full mt-6 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold text-base shadow-md"
+              disabled={processing}
+              className={`w-full mt-6 py-3 rounded-lg font-semibold text-base shadow-md transition-all ${
+                processing
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-red-500 hover:bg-red-600 text-white"
+              }`}
             >
-              Place Order →
+              {processing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                <>
+                  {formData.paymentMethod === "COD"
+                    ? "Place Order (COD) →"
+                    : "Proceed to Payment →"}
+                </>
+              )}
             </button>
           </form>
         </div>

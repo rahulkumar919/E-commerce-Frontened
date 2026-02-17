@@ -1,4 +1,4 @@
-import React from "react";
+
 import CategoryList from "../components/CategoryList";
 import BannerProdcut from "../components/BannerProdcut";
 

@@ -8,6 +8,8 @@ import { useEffect, useState, createContext } from 'react';
 import { useDispatch } from 'react-redux';
 import { setUserDetails } from '../store/userSlice';
 import SummaryApi from '../common/index';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { SiteSettingsProvider } from './context/SiteSettingsContext';
 
 // Create Context
 export const Context = createContext();
@@ -84,6 +86,7 @@ function App() {
     user,
     setUser,
     fetchUserDetails,
+    fetchUserAddToCount,
     cartProductCount,
     setCartProductCount,
     increaseCartCount,
@@ -91,14 +94,18 @@ function App() {
   };
 
   return (
-    <Context.Provider value={contextValue}>
-      <ToastContainer position="top-center" />
-      <Header />
-      <main className="min-h-[calc(100vh-120px)] pt-16">
-        <Outlet />
-      </main>
-      <Footer />
-    </Context.Provider>
+    <GoogleOAuthProvider clientId="928805232883-red1udn5fb1qaubie4ub81gjsq2lueem.apps.googleusercontent.com">
+      <SiteSettingsProvider>
+        <Context.Provider value={contextValue}>
+          <ToastContainer position="top-center" />
+          <Header />
+          <main className="min-h-[calc(100vh-120px)] pt-16">
+            <Outlet />
+          </main>
+          <Footer />
+        </Context.Provider>
+      </SiteSettingsProvider>
+    </GoogleOAuthProvider>
   );
 }
 

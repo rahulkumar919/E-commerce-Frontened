@@ -1,20 +1,24 @@
 import React, { useEffect, useState, useContext } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import SummaryApi from "../../common";
 import { toast } from "react-toastify";
 import { FaShoppingCart } from "react-icons/fa";
 import { Context } from "../App";
+import addTocart from "../PhotoHelper/addToCard";
 
 const CategoryProduct = () => {
   const { category } = useParams();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { user } = useContext(Context);
+  const { user, fetchUserAddToCount } = useContext(Context);
+  const navigate = useNavigate();
 
-  // ✅ Fetch products by category
+  // Fetch products by category
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      console.log("🔍 Fetching products for category:", category);
+      
       const response = await fetch(SummaryApi.CategoryWiseProduct.url, {
         method: "POST",
         headers: {
@@ -25,9 +29,13 @@ const CategoryProduct = () => {
 
       const data = await response.json();
       console.log("✅ Category API response:", data);
+      console.log("📦 Products found:", data.data?.length || 0);
 
       if (data.success) {
         setProducts(data.data || []);
+        if (data.data?.length === 0) {
+          toast.info(`No products found in ${category} category`);
+        }
       } else {
         toast.error(data.message || "Failed to fetch products");
         setProducts([]);
@@ -44,19 +52,24 @@ const CategoryProduct = () => {
     if (category) fetchProducts();
   }, [category]);
 
-  // ✅ Add to cart (localStorage)
-  const handleAddToCart = (product) => {
-    const cartItems = JSON.parse(localStorage.getItem("cartItems")) || [];
-    const alreadyAdded = cartItems.some((item) => item._id === product._id);
-
-    if (alreadyAdded) {
-      toast.info("This product is already in your cart!");
+  // ✅ Add to cart - Check if user is logged in first
+  const handleAddToCart = async (e, product) => {
+    // Check if user is logged in
+    if (!user) {
+      toast.warning("Please login to add items to cart");
+      navigate("/login");
       return;
     }
 
-    cartItems.push({ ...product, quantity: 1 });
-    localStorage.setItem("cartItems", JSON.stringify(cartItems));
-    toast.success(`${product.productName} added to cart 🛒`);
+    // Call backend API to add to cart
+    const result = await addTocart(e, product._id);
+    
+    if (result?.success) {
+      // Update cart count
+      if (fetchUserAddToCount) {
+        fetchUserAddToCount();
+      }
+    }
   };
 
   return (
@@ -135,7 +148,7 @@ const CategoryProduct = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleAddToCart(product)}
+                      onClick={(e) => handleAddToCart(e, product)}
                       className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-md flex items-center gap-1 text-xs font-medium"
                     >
                       <FaShoppingCart /> Add

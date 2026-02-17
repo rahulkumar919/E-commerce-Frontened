@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { Context } from "../App"; // ✅ Import context
+import addTocart from "../PhotoHelper/addToCard";
 
 const HorizontalCardProduct = ({ category, heading }) => {
   const [data, setData] = useState([]);
@@ -13,8 +14,8 @@ const HorizontalCardProduct = ({ category, heading }) => {
   const scrollElement = useRef(null);
   const navigate = useNavigate();
 
-  // ✅ Access global cart counter
-  const { increaseCartCount, refreshCartCount } = useContext(Context);
+  // ✅ Access global cart counter and user
+  const { user, fetchUserAddToCount } = useContext(Context);
 
   const loadingList = new Array(6).fill(null);
 
@@ -41,8 +42,15 @@ const HorizontalCardProduct = ({ category, heading }) => {
   const scrollRight = () =>
     scrollElement.current.scrollBy({ left: 400, behavior: "smooth" });
 
-  // ✅ Add to Cart (with global counter)
-  const handleAddToCart = (product) => {
+  // ✅ Add to Cart - Check if user is logged in first
+  const handleAddToCart = async (e, product) => {
+    // Check if user is logged in
+    if (!user) {
+      toast.warning("Please login to add items to cart");
+      navigate("/login");
+      return;
+    }
+
     const alreadyAdded = addedItems.includes(product._id);
     if (alreadyAdded) {
       toast.info("This item is already in your cart!");
@@ -50,29 +58,21 @@ const HorizontalCardProduct = ({ category, heading }) => {
       return;
     }
 
-    // Update local added state
-    setAddedItems((prev) => [...prev, product._id]);
-    toast.success(`${product.productName} added to cart 🛒`);
+    // Call backend API to add to cart
+    const result = await addTocart(e, product._id);
+    
+    if (result?.success) {
+      // Update local added state
+      setAddedItems((prev) => [...prev, product._id]);
+      
+      // Update cart count
+      if (fetchUserAddToCount) {
+        fetchUserAddToCount();
+      }
 
-    // Save product in localStorage
-    const existingCart = JSON.parse(localStorage.getItem("cartItems")) || [];
-    const existingItemIndex = existingCart.findIndex(
-      (item) => item._id === product._id
-    );
-
-    if (existingItemIndex !== -1) {
-      existingCart[existingItemIndex].quantity += 1;
-    } else {
-      existingCart.push({ ...product, quantity: 1 });
+      // Redirect to cart after short delay
+      setTimeout(() => navigate("/cart"), 500);
     }
-
-    localStorage.setItem("cartItems", JSON.stringify(existingCart));
-
-    // ✅ Update global count
-    increaseCartCount(1);
-
-    // Redirect to cart after short delay
-    setTimeout(() => navigate("/cart"), 500);
   };
 
   return (
@@ -154,7 +154,7 @@ const HorizontalCardProduct = ({ category, heading }) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleAddToCart(product);
+                          handleAddToCart(e, product);
                         }}
                         disabled={isAdded}
                         className={`w-full mt-3 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
@@ -234,7 +234,7 @@ const HorizontalCardProduct = ({ category, heading }) => {
               </p>
 
               <button
-                onClick={() => handleAddToCart(selectedProduct)}
+                onClick={(e) => handleAddToCart(e, selectedProduct)}
                 disabled={addedItems.includes(selectedProduct._id)}
                 className={`w-full mt-6 py-3 rounded-lg font-semibold text-white text-base transition-all ${
                   addedItems.includes(selectedProduct._id)

@@ -1,23 +1,34 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import SummaryApi from "../../common";
 import { Link } from "react-router-dom";
 
 const CategoryList = () => {
-  const [categoryProduct, setCategoryProduct] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  //  Fetch all categories
-  const fetchCategoryProduct = async () => {
+  //  Fetch all categories from Category model
+  const fetchCategories = async () => {
     try {
-      const response = await fetch(SummaryApi.GetDataCategory.url);
+      setLoading(true);
+      const response = await fetch(SummaryApi.getAllCategories.url, {
+        method: SummaryApi.getAllCategories.method,
+      });
       const dataResponse = await response.json();
-      setCategoryProduct(dataResponse.data || []);
+      
+      if (dataResponse.success) {
+        // Filter only active categories
+        const activeCategories = dataResponse.data.filter(cat => cat.isActive);
+        setCategories(activeCategories);
+      }
     } catch (error) {
       console.error("Error fetching categories:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCategoryProduct();
+    fetchCategories();
   }, []);
 
   return (
@@ -43,17 +54,26 @@ const CategoryList = () => {
             snap-x snap-mandatory scroll-smooth py-4
           "
         >
-          {categoryProduct.length > 0 ? (
-            categoryProduct.map((product, index) => {
-              const imageUrl = Array.isArray(product?.productImage)
-                ? product.productImage[0]
-                : product?.productImage;
-              const category = product?.category || "Category";
+          {loading ? (
+            // Loading skeleton
+            Array(8).fill().map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-col items-center justify-center min-w-[90px] md:min-w-[110px] snap-start"
+              >
+                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-200 animate-pulse"></div>
+                <div className="h-4 w-16 bg-gray-200 rounded mt-3 animate-pulse"></div>
+              </div>
+            ))
+          ) : categories.length > 0 ? (
+            categories.map((category) => {
+              const imageUrl = category?.image;
+              const categoryName = category?.name || "Category";
 
               return (
                 <Link
-                  key={index}
-                  to={`/product-category/${encodeURIComponent(category)}`}
+                  key={category._id}
+                  to={`/product-category/${encodeURIComponent(categoryName)}`}
                   className="
                     flex flex-col items-center justify-center
                     min-w-[90px] md:min-w-[110px] snap-start
@@ -73,7 +93,7 @@ const CategoryList = () => {
                     {imageUrl ? (
                       <img
                         src={imageUrl}
-                        alt={category}
+                        alt={categoryName}
                         loading="lazy"
                         className="
                           h-12 md:h-14 object-contain 
@@ -95,7 +115,7 @@ const CategoryList = () => {
                       transition-colors duration-300
                     "
                   >
-                    {category}
+                    {categoryName}
                   </p>
                 </Link>
               );

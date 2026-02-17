@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SummaryApi from "../../common";
 import { toast } from "react-toastify";
+import { Context } from "../App";
+import addTocart from "../PhotoHelper/addToCard";
 
 const ProductDetails = () => {
   const { id } = useParams(); // get product id from URL
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user, fetchUserAddToCount } = useContext(Context);
 
   // Fetch product details
   const fetchProduct = async () => {
@@ -34,21 +37,46 @@ const ProductDetails = () => {
     fetchProduct();
   }, [id]);
 
-  //  Add to cart (for now using localStorage)
-  const handleAddToCart = () => {
-    const cartItems = JSON.parse(localStorage.getItem("cartItems")) || [];
-    const alreadyAdded = cartItems.some((item) => item._id === product._id);
-
-    if (alreadyAdded) {
-      toast.info("This product is already in your cart!");
+  //  Add to cart - Check if user is logged in first
+  const handleAddToCart = async (e) => {
+    // Check if user is logged in
+    if (!user) {
+      toast.warning("Please login to add items to cart");
+      navigate("/login");
       return;
     }
 
-    localStorage.setItem(
-      "cartItems",
-      JSON.stringify([...cartItems, { ...product, quantity: 1 }])
-    );
-    toast.success(`${product.productName} added to cart 🛒`);
+    // Call backend API to add to cart
+    const result = await addTocart(e, product._id);
+    
+    if (result?.success) {
+      // Update cart count
+      if (fetchUserAddToCount) {
+        fetchUserAddToCount();
+      }
+    }
+  };
+
+  // Buy Now - Check if user is logged in first
+  const handleBuyNow = async (e) => {
+    // Check if user is logged in
+    if (!user) {
+      toast.warning("Please login to proceed with purchase");
+      navigate("/login");
+      return;
+    }
+
+    // Add to cart first
+    const result = await addTocart(e, product._id);
+    
+    if (result?.success) {
+      // Update cart count
+      if (fetchUserAddToCount) {
+        fetchUserAddToCount();
+      }
+      // Navigate to cart
+      navigate("/cart");
+    }
   };
 
   if (loading) {
@@ -113,10 +141,7 @@ const ProductDetails = () => {
               Add to Cart
             </button>
             <button
-              onClick={() => {
-                handleAddToCart();
-                navigate("/checkout");
-              }}
+              onClick={handleBuyNow}
               className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold transition-all"
             >
               Buy Now

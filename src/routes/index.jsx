@@ -13,6 +13,10 @@ import ProductDetails from "../components/ProductDetails.jsx";
 import Cart from "../pages/Cart.jsx";
 import Checkout from "../PhotoHelper/Checkout.jsx";
 import SearchProduct from "../components/SearchProduct.jsx";
+import SiteSettings from "../pages/SiteSettings.jsx";
+import CategoryManagement from "../pages/CategoryManagement.jsx";
+import BannerManagement from "../pages/BannerManagement.jsx";
+import AllCategoriesPage from "../pages/AllCategoriesPage.jsx";
 
 const router = createBrowserRouter([
   {
@@ -23,6 +27,7 @@ const router = createBrowserRouter([
       { path: "login", element: <Login /> },
       { path: "forget-password", element: <ForgetPassword /> },
       { path: "sign-up", element: <SignUP /> },
+      { path: "all-categories", element: <AllCategoriesPage /> },
       { path: "product-category", element: <CategoryProduct /> },
       { path: "product-category/:category", element: <CategoryProduct /> },
       { path: "product-details/:id", element: <ProductDetails /> },
@@ -38,7 +43,9 @@ const router = createBrowserRouter([
         children: [
           { path: "users", element: <AllUser /> },
           { path: "products", element: <Allproduct /> },
-         
+          { path: "categories", element: <CategoryManagement /> },
+          { path: "banners", element: <BannerManagement /> },
+          { path: "site-settings", element: <SiteSettings /> },
         ],
       },
     ],
